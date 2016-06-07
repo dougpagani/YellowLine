@@ -1,101 +1,112 @@
-//Fiji_MultiKymographMovie
-//2016 Jan 17 Jeff Bouffard 
+// Characteristics: This does the whole workflow, and avoids creating an entire mess-of-a-folder.
+// It takes less memory, and the final finished product is nice and concise. Must save then, though.
 
-//Generates single movie featuring time series and kymographs in both directions
-//yellow line traces time in kymographs while movie plays
-//Input: Movie processed by Fiji_Process_GCaMP.  Currently only _A
-//Output: Movie with kymographs
+// Tasks:
 
-//-----------------------------------------------------------------------------------------------------------
-//In this macro frames are slices because Fiji seems to want to treat frames as slices in 3D movies
-//I successfully corrected it in Fiji_Process_GCaMP_1_1, but it is detrimental because there isn't a command to get the frame number
+/*
+ * 1) Dialog prompt
+ * 2) Basic operation using COMBINE
+ * 3) For loop
+ * 4) 
+ */
 
-//----------------------------------------------------------------------------------------
-//Clearing Fiji of all open images and windows
-waitForUser("SAVE ANY FILES YOU WANT TO KEEP!!!","All images and windows open in Fiji will be closed when you press OK! \nSave any images or files you wish to keep.");
+//Tidywork:
 
-//next line lifted from http://rsb.info.nih.gov/ij/macros/Close_All_Windows.txt
-while (nImages>0) {selectImage(nImages); close();}
-//next line lifted from http://imagej.1557.x6.nabble.com/Result-window-in-macro-td3698804.html
-if (isOpen("Results")) {selectWindow("Results"); run("Close");}
+// Close all windows, establish standard settings
+// also, could ensure the new title is relevant to the first
+// will NOT auto-save, bc it produces a tangible and it is important the interacting scientist knows
+// where it is saved, as it will most likely be used on an ad-hoc basis.
+// - could ensure the video is of proper "A" format...
 
-if(isOpen("ROI Manager")){selectWindow("ROI Manager");run("Close");}
-if(isOpen("Log")){selectWindow("Log");run("Close");}
-if(isOpen("Debug")){selectWindow("Debug");run("Close");}
+// 1) Dialog prompt(s)
 
-//----------------------------------------------------------------------------------------
-//Opening and gathering information from movie file
-filepath=File.openDialog("Select a File");
-print(filepath); //if you want to see the filepath in log window
+// Which video (z-stack-by-time)?
+filepath=File.openDialog("Select a Movie");
 open(filepath);
 
-title = getTitle();
-titleID = getImageID();
-Stack.getDimensions(width,height,channel,slice,frame);
+// Which kymo?
+Dialog.create("Choose the visualization-type")
 
-SplitString = split(title,"."); 
-print(SplitString[0]); //if you want to see SplitString in log window
+// Features:
 
-SplitFilepath = split(filepath, File.separator);
+// which X?
+Dialog.addChoice("X Kymograph type:", newArray("None", "Average", "Max", "Min", "Sum", "SD", "Median"), "None");
+Dialog.addCheckbox("Type-label?", true);
+// which Y?
+Dialog.addChoice("Y Kymograph type:", newArray("None", "Average", "Max", "Min", "Sum", "SD", "Median"), "None");
+Dialog.addCheckbox("Type-label?", true);
 
-// Makes directory from File path for finding the associated Kymographs in the directory
-Directory = "/";
-for(i = 0; i < (lengthOf(SplitFilepath) - 1); i++) {
-Directory = Directory + SplitFilepath[i]+ File.separator;};
+Dialog.setLocation(400,250);
+// add help box...
+  html = "<html>"
+     +"<h2>What are these options?</h2>"
+     +"<font size=-1>
+     +"<b>X-Kymo:</b> <font color=red>Preserves the X-dimension</font>, while switching the orientation of the Time-dimension & Y-dimension,<br>"
+     + "then collapsing the Y-dimension's associated pixel intensities with the chosen operation.<br>"
+     + "e.g. 'Max' yielding the highest 8-bit value <i>out-of-all</i> the Y-values<br>"
+     + "<font color=red>tl;dr</font> - The 'classic' Kymograph– looks like a broken wish-bone."
+     +"<br><br/>"
+     +"<b>Type-Label?:</b> Burns in (or 'flattens' in ijm-jargon) a label of which operation was performed on the Kymograph.<br>"
+     +"Changes the pixel-data; avoid if further calculations are desired.<br>"
+     +"<br>"
+     +"<b>Y-Kymo:</b> <font color=red>Preserves the Y-dimension</font>, while switching the orientation of the Time-dimension & Y-dimension,<br>"
+     + "then collapsing the Y-dimension's associated pixel intensities with the chosen operation.<br>"
+     + "e.g. 'Max' yielding the highest 8-bit value <i>out-of-all</i> the Y-values<br>"
+     + "<font color=red>tl;dr</font> - The 'classic' Kymograph– looks like a broken wish-bone."
+     +"<br><br/>"
+     +"<b>Choosing both:</b> A scrollable image will be formatted as would be expected."
+     +"<br><br/>"
+     +"</font>";
+  Dialog.addHelp(html);
+// Trigger the interaction
+Dialog.show();
 
-print(Directory); //if you want to see Directory in log window
+// Harvest the information
+// The X-Kymograph... 
+x_type_arg = "projection=[" + Dialog.getChoice(); "]");
+x_label_flag = Dialog.getCheckbox();
+//print("The x_type is..." + x_type);
+//print(x_label_flag);
+// The Y-Kymograph...
+y_type = Dialog.getChoice();
+y_label_flag = Dialog.getCheckbox();
+//print("The y_type is..." + y_type);
+//print(y_label_flag);
 
-//----------------------------------------------------------------------------------------
-//Defining kymograph folder
-KymographDirectory = Directory+"Kymographs"+File.separator;
-print("KymographDirectory:" + KymographDirectory);
+// So far... original video is OPEN... the kymographs are NOT made
 
-//If kymograph data doesn't exist, error is thrown to user.
-if (File.isDirectory(KymographDirectory)!=1) {
-    exit("Kymographs not found for this movie. \nPlease run Fiji_KymoCalcium_GCaMP to generate kymographs for this script. \nGoodbye. ");};
+// Make X Kymograph (will run macros to accomplish this)
+if(x_type== "None") {
+	// Do nothing
+}
+else {
+	run("Reslice [/]...", "output=1.000 start=Left rotate");
+	// now i have a new stack
+	// open: original + kymo-stack
+	run("Z Project...", x_type_arg);
+	// open: original + kymo-slice + kymograph
+	close("Reslice*");
+	
+}
+// Close-out old re-sliced STACK (un-compressed kymograph)
 
-//----------------------------------------------------------------------------------------
-//Loading kymographs
-//AvgX 
-NewTitle_AvgKymoX = SplitString[0]+"_AvgKymoX.tif";
-open(KymographDirectory+NewTitle_AvgKymoX);
-AvgKymoX=getImageID(); 
+// Make Y Kymograph
 
-//MaxY
-NewTitle_MaxKymoY = SplitString[0]+"_MaxKymoY.tif";
-open(KymographDirectory+NewTitle_MaxKymoY);
-MaxKymoY=getImageID();
+if(y_type== "None") {
+	// Do nothing
+}
+else {
+	run("Reslice [/]...", "output=1.000 start=Left rotate");
+	// now i have a new stack
+	// open: original + kymo-stack
+	run("Z Project...", y_type_arg);
+	// open: original + kymo-slice + kymograph
+	close("Reslice*");
+}
 
-//----------------------------------------------------------------------------------------
-//Defining folders to save individual marked frames to assemble into movie
-AvgKymoX_Directory = KymographDirectory+"AvgKymoX"+File.separator;
-	//If folder doesn't exist then it is created.
-if (File.isDirectory(AvgKymoX_Directory)!=1) {File.makeDirectory(AvgKymoX_Directory);};
 
-MaxKymoY_Directory = KymographDirectory+"MaxKymoY"+File.separator;
-	//If folder doesn't exist then it is created.
-if (File.isDirectory(MaxKymoY_Directory)!=1) {File.makeDirectory(MaxKymoY_Directory);};
+// Close-out old re-sliced STACK (un-compressed kymograph)
 
-//----------------------------------------------------------------------------------------
-//
-tLine_AvgKymoX = NewTitle_AvgKymoX+"_tLine";	
-tLine_MaxKymoY = NewTitle_MaxKymoY+"_tLine";
-setLineWidth(1);
 
-for (i=0; i<slice; i++){
-selectImage(AvgKymoX);
-makeLine(0, (slice-i), width, (slice-i), 1);
-run("Flatten");
-saveAs("Tiff",AvgKymoX_Directory+tLine_AvgKymoX+"_"+i);
-close();
-
-selectImage(MaxKymoY);
-makeLine(i, 0, i, height, 1);
-run("Flatten");
-saveAs("Tiff",MaxKymoY_Directory+tLine_MaxKymoY+"_"+i);
-close();
-};
-
-exit("Script complete. \nDrag folder to Fiji toolbar to load movie. \nGoodbye. ");
 
 
