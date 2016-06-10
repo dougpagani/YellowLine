@@ -151,7 +151,7 @@ close(fp_name);
 print(getValue("color.foreground"));
 print(getValue("color.background"));
 setLineWidth(1);
-setForegroundColor(255, 255, 255);e
+setForegroundColor(255, 255, 255);
 setColor(255);
 print(getValue("color.foreground"));
 print(getValue("color.background"));
@@ -161,21 +161,18 @@ print(getValue("color.background"));
 if(x_type!= "None") {
 
 	selectImage(XID);
-	
-	makeLine(1, (Xh-1), Xw, (Xh-1));
-	makeRectangle(Xh,0,0,400);
+	makeRectangle(0,0,Xw,1);
 	changeValues(0,255,200);
-	run("Flatten");
 	// set the first flattened image equal to the soon-to-be accumulating concatenation
 	AccX_ID = getImageID();
 	rename("Concats-X!");
 	
-	for (i=2; i <= TILL; i++) {
+	for (i=1; i <= TILL; i++) {
 		//make the X Kymograph active, that will have lines, iteratively, painted onto it
 	    selectImage(XID);
-	    Overlay.remove();
-		makeLine(1, (Xh - i), Xw, (Xh - i));
-		run("Flatten");
+	    run("Duplicate...", "title=[The d00p]");
+		makeRectangle(0,Xh-i,Xw, 1);
+		changeValues(0,255,200);
 		// after Flatten, the newly-created & selected image will be ACTIVE
 	    // This must be combined with the Accumulating line-series concatenation, and then deleted itself
 	    run("Concatenate...", "  title=Concats-X! image1=[Concats-X!] image2=[" + getTitle + "]");
@@ -188,21 +185,19 @@ if(x_type!= "None") {
 if(y_type!= "None") {
 
 	selectImage(YID);
-	makeLine(30, 1, 30, 400);
-	makeLine(1, 1, 1, Yh);
-	run("Flatten");
+	
+	makeRectangle(0,0,1,Yh);
+	changeValues(0,255,200);
 	// set the first flattened image equal to the soon-to-be accumulating concatenation
 	AccY_ID = getImageID();
 	rename("Concats-Y!");
-
 	
-	for (i=2;i <= TILL; i++) {
+	for (i=1;i <= TILL; i++) {
 		// make the Y Kymograph active, each time painting a line onto it
 		selectImage(YID);
-		// Ensure no lines from previous actions are pre-painted
-		Overlay.remove();
-		makeLine(i, 1, i, Yh);
-		run("Flatten");
+	    run("Duplicate...", "title=[The d00p]");
+		makeRectangle(i,0,1,Yh);
+		changeValues(0,255,200);
 		run("Concatenate...", "  title=Concats-Y! image1=[Concats-Y!] image2=[" + getTitle + "]");
 		
 	}
